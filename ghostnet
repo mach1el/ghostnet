@@ -1,0 +1,466 @@
+#!/usr/bin/env python2
+# -*- coding:utf-8 -*-
+
+import os
+import sys
+import time
+import socket
+import random
+import getpass
+import os.path
+from commands import *
+from os.path import isfile
+from urllib2 import urlopen
+from subprocess import call
+
+RED      ='\033[1;91m'
+BLUE     ='\033[1;94m'
+CYAN     ='\033[1;96m'
+GREEN    ='\033[1;92m'
+YELLOW   ='\033[1;93m'
+
+pwd 	 = os.getcwd()
+user 	 = getpass.getuser()
+hostname = socket.gethostname()
+__name 	 = sys.argv[0]
+
+title = RED+'''
+ _______ _______ _______ _______ _______ _______ _______ _______ 
+|\     /|\     /|\     /|\     /|\     /|\     /|\     /|\     /|
+| +---+ | +---+ | +---+ | +---+ | +---+ | +---+ | +---+ | +---+ |
+| |   | | |   | | |   | | |   | | |   | | |   | | |   | | |   | |
+| |G  | | |h  | | |o  | | |s  | | |t  | | |N  | | |E  | | |T  | |
+| +---+ | +---+ | +---+ | +---+ | +---+ | +---+ | +---+ | +---+ |
+|/_____\|/_____\|/_____\|/_____\|/_____\|/_____\|/_____\|/_____\|
+
+\033[1;91mAuthor: Michael
+\033[1;91mVersion: 1.0
+\033[1;91mURL: https://github.com/t7hm1/GhostNET
+
+\033[1;91m[\033[1;92m{0}\033[1;93m@\033[1;94m{1}\033[1;91m]─[\033[1;92m{2}\033[1;91m]$\033[1;92m{3} \033[1;91m[\033[1;92mstart\033[1;91m|\033[1;92mstop\033[1;91m|\033[1;92mstatus\033[1;91m]
+'''.format(user,hostname,pwd,__name)
+
+list_name = ['Agustin','Aharon','Albert','Alexa',
+			 'Alexander','Angela','Anna','Ardell',
+			 'Arthur','Athena','Aura','Aurora',
+			 'Baron','Barrah','Beverlee','Bill',
+			 'Blake','Black','Bob','Brook',
+			 'Bruce','Buck','Bud','Buff',
+			 'Cal','Cameron','Campbell','Carl',
+			 'Carlotta','Chart','Church','Chucks',
+			 'Dunk','Deep','Done','Donal',
+			 'Elly','Emas','Emily','Emmely',
+			 'Encho','Exly','Em','Erick',
+			 'Fnick','Fuzz','Fing','Fon',
+			 'GOD','GAME','GOOD','GOLD',
+			 'Invoker','Ghost','Lina','Drow',
+			 'Wind','Yazzy','Riley','Maiden',
+			 'Tinker','Phantom'
+]
+
+def ErrHandler(Err):
+	_h 	  = Exceptions(Err)
+	error = _h._check_type()
+
+def _check_iface_stat():
+	_i 	   = os.popen('ip link | grep \"state\" | awk {\'print $2 $9\'}').read()
+	ifaces = _i.split('\n')
+	_l 	   = len(ifaces)
+	ifaces.pop(_l-1)
+
+	_list  = {}
+
+	for i in ifaces:
+		item = i.split(':')
+		_list[item[0]] = item[1]
+
+	keys = _list.keys()
+
+	for key in keys: 
+		stat = _list[key]
+		if stat == "UP":
+			iface = key
+		else:
+			pass
+
+	return iface
+
+class Exceptions:
+	def __init__(self,Err=None):
+		self.Err = Err
+
+	def _check_type(self):
+		if self.Err == 'root':
+			self.ROOT()
+		elif self.Err == 'valerr':
+			self.ValErr()
+		elif self.Err == 'key':
+			self.KeyboardInterrupt()
+		elif self.Err == 'ProcErr':
+			self.ProcErr()
+
+	def ROOT(self):
+		print(RED+'[ERROR] This script must run as root')
+
+	def ValErr(self):
+		print(RED+'[ValueError] Retype a correct value')
+
+	def KeyboardInterrupt(self):
+		print(RED+'[KEY] You stopped this process')
+
+	def ProcErr(self):
+		print(RED+'[ERROR] Failed to execute command')
+
+class Ghost_Proc(object):
+	def __init__(self):
+		super(Ghost_Proc,self).__init__()
+		self._rname 	  = random.choice(list_name)
+		self._hostname    = os.popen('cat /etc/hostname').read()
+		self._tor_conf	  = '/etc/tor/torrc'
+		self._toruid	  = getoutput('id -ur tor 2>/dev/null')
+		self._hosts_conf  = open('/etc/hosts').readlines()
+		self._edit_hosts  = '/etc/hosts'
+		self._rules_file  = '/opt/rules.sh'
+		self._del_rules   = '/opt/del_rules.sh'
+		self._iface 	  = _check_iface_stat()
+		self._tor_stat    = os.popen('systemctl status tor | grep \"Active\" | awk \'{print $2}\'').read()
+		self._torrc		  = r'''
+VirtualAddrNetwork 10.192.0.0/10
+AutomapHostsOnResolve 1
+TransPort 9040
+DNSPort 5353
+
+SocksPort 9050
+DNSListenAddress 127.0.0.1
+TransListenAddress 127.0.0.1
+AutomapHostsSuffixes .exit,.onion
+
+Log notice file /tmp/ghostnet.log
+
+HardwareAccel 1
+
+TestSocks 1
+WarnUnsafeSocks 1
+AllowNonRFC953Hostnames 0
+AllowDotExit 0
+
+ClientRejectInternalAddresses 1
+
+NewCircuitPeriod 40
+MaxCircuitDirtiness 600
+MaxClientCircuitsPending 48
+UseEntryGuards 1
+UseEntryGuardsAsDirGuards 1
+EnforceDistinctSubnets 1
+'''
+
+	def _kill_NM(self):
+		kill = os.popen('systemctl stop NetworkManager.service 2>/dev/null')
+		print RED+'  -> Network Manager serivce already stopped!!!'
+
+	def _start_NM(self):
+		start = os.popen('systemctl start NetworkManager.service 2>/dev/null')
+		print GREEN+'  -> Network Manager service already started!!!'
+
+	def _flush_iptables(self,job):
+		if job == 'start':
+			os.popen('iptables -F')
+			os.popen('iptables -t nat -F')
+			print GREEN+'  -> Flushed all iptables rules.'
+		else:
+			del_rules = r'''
+#!/bin/sh
+
+IPT="/sbin/iptables"
+
+$IPT -P INPUT ACCEPT
+$IPT -P FORWARD ACCEPT
+$IPT -P OUTPUT ACCEPT
+
+$IPT --flush
+$IPT --delete-chain
+$IPT -t nat --flush
+$IPT -t mangle --flush
+'''
+			if isfile(self._del_rules):
+				os.popen('sh '+self._del_rules)
+			else:
+				with open(self._del_rules,'w+') as _wf:
+					_wf.write(del_rules)
+				os.popen('sh '+self._del_rules)
+			print GREEN+'  -> Return default rules of iptables.'
+		
+	def _kill_process(self):
+		killing = os.popen('killall -q chrome dropbox iceweasel skype icedove thunderbird firefox firefox-esr chromium xchat hexchat transmission steam')
+		print BLUE+'  -> Killed some process to prevent leaks'
+
+
+	def _clear_caches(self):
+		clearing = os.popen('bleachbit -c adobe_reader.cache chromium.cache chromium.current_session chromium.history elinks.history emesene.cache epiphany.cache firefox.url_history flash.cache flash.cookies google_chrome.cache google_chrome.history links2.history opera.cache opera.search_history opera.url_history system.cache system.tmp &> /dev/null')
+		print BLUE+'  -> Cleared up some cache to prevent leaks'
+
+	def _mod_resolv_conf(self):
+		os.popen('echo \"nameserver 127.0.0.1\" > /etc/resolv.conf')
+		print YELLOW+'  -> Modified resolv.conf to use Tor'
+
+	def _configure_tor_file(self):
+		if isfile(self._tor_conf):
+			if not 'VirtualAddrNetwork' in open(self._tor_conf).read():
+				with open(self._tor_conf,'a+') as torconf:
+					torconf.write(self._torrc)
+		print BLUE+'  -> Changed the tor conf file.'
+
+	def _change_hostname(self,job):
+		if job == 'start':
+			_n  = raw_input('   :: Enter new hostname or use random one > ')
+			if _n != '':
+				_n  = _n.replace(' ','')
+				cmd = 'hostnamectl set-hostname %s' % _n
+				os.popen(cmd)
+				cmd = 'echo \"%s\" > /etc/hostname' % _n
+				os.popen(cmd)
+
+				with open(self._edit_hosts,'w+') as _eh:
+					_eh.write('127.0.0.1\t'+'localhost.localdomain   localhost '+_n)
+
+				print BLUE+'  -> Hostname changed to %s' % _n
+
+			else:
+				_n  = self._rname
+				cmd = 'hostnamectl set-hostname %s' % _n
+				os.popen(cmd)
+				cmd = 'echo \"%s\" > /etc/hostname' % _n
+				os.popen(cmd) 
+
+				with open(self._edit_hosts,'w+') as _eh:
+					_eh.write('127.0.0.1\t'+'localhost.localdomain   localhost '+_n)
+
+				print BLUE+'  -> Hostname changed to %s' % _n
+		else:
+			an = raw_input('   :: Do you want to change hostname? [y/n] > ')
+			if an == '' or an == 'y' or an == 'Y':
+				_c = raw_input('  -> Reuse your hostname [%s] or enter a new one > ' % self._hostname)
+				if _c == '':
+					cmd = 'hostnamectl set-hostname %s' % self._hostname
+					os.popen(cmd)
+					cmd = 'echo \"%s\" > /etc/hostname' % self._hostname
+					os.popen(cmd) 
+
+					with open(self._edit_hosts,'w+') as _eh:
+						for line in self._hosts_conf:
+							_eh.write(line)
+
+					print GREEN+'  -> Reuse your last hostnme %s' % hostname
+
+				else:
+					cmd = 'hostnamectl set-hostname %s' % _c
+					os.popen(cmd)
+					cmd = 'echo \"%s\" > /etc/hostname' % _c
+					os.popen(cmd) 
+
+					with open(self._edit_hosts,'w+') as _eh:
+						_eh.write('127.0.0.1\tlocalhost')
+						_eh.write('\n')
+						_eh.write('::1\tlocalhost')
+						_eh.write('\n')
+						_eh.write('127.0.0.1\tlocalhost.localdomain   localhost '+_c)
+
+					print GREEN+'  -> Used a new hostname %s' % _c
+			else:
+				print YELLOW+'  -> Skip this step!!!'
+
+	def _load_iptables(self):
+		fnull = open(os.devnull,'w')
+
+		try:
+			_rules = r'''
+#!/bin/sh
+
+_trans_port="9040"
+
+_dns_port="5353"
+
+_virt_addr="10.192.0.0/10"
+
+_non_tor="127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"
+
+_resv_iana="0.0.0.0/8 100.64.0.0/10 169.254.0.0/16 192.0.0.0/24 192.0.2.0/24 192.88.99.0/24 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/3"
+
+iptables -F
+iptables -t nat -F
+
+iptables -t nat -A PREROUTING -d $_virt_addr -i {0} -p tcp --syn -j REDIRECT --to-ports $_trans_port
+iptables -t nat -A PREROUTING -i {0} -p udp --dport 5353 -j REDIRECT --to-ports $_dns_port
+iptables -t nat -A PREROUTING -i {0} -p udp --dport 53 -j REDIRECT --to-ports $_dns_port
+
+for _lan in $_non_tor; do
+   iptables -t nat -A PREROUTING -i {0} -d $_lan -j RETURN
+done
+
+for _iana in $_resv_iana; do
+   iptables -t nat -A PREROUTING -i {0} -d $_iana -j RETURN
+done
+
+iptables -t nat -A PREROUTING -i {0} -p tcp --syn -j REDIRECT --to-ports $_trans_port
+
+iptables -t nat -A OUTPUT -d $_virt_addr -p tcp --syn -j REDIRECT --to-ports $_trans_port
+iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports $_dns_port
+iptables -t nat -A OUTPUT -m owner --uid-owner {1} -j RETURN
+iptables -t nat -A OUTPUT -o lo -j RETURN
+
+for _lan in $_non_tor; do
+	iptables -t nat -A OUTPUT -d $_lan -j RETURN
+done
+
+for _lan in $_resv_iana; do
+	iptables -t nat -A OUTPUT -d $_lan -j RETURN
+done
+
+iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports $_trans_port
+
+iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
+iptables -A INPUT -i lo -j ACCEPT
+
+#Don't forget to grant yourself ssh access for remote machines before the DROP.
+#iptables -A INPUT -i {0} -p tcp --dport 22 -m state --state NEW -j ACCEPT
+
+iptables -A INPUT -j DROP
+iptables -A FORWARD -j DROP
+
+iptables -A OUTPUT -m state --state INVALID -j DROP
+iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
+
+iptables -A OUTPUT -o {0} -m owner --uid-owner {1} -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j ACCEPT
+
+iptables -A OUTPUT -d 127.0.0.1/32 -o lo -j ACCEPT
+
+iptables -A OUTPUT -d 127.0.0.1/32 -p tcp --syn --dport $_trans_port -j ACCEPT
+
+for _lan in $_non_tor; do
+	iptables -A OUTPUT -d $_lan -j ACCEPT
+done
+
+iptables -A OUTPUT -j LOG --log-prefix "Dropped OUTPUT packet: " --log-level 7 --log-uid
+iptables -A OUTPUT -j DROP
+
+iptables -P INPUT DROP
+iptables -P FORWARD DROP
+iptables -P OUTPUT DROP
+'''.format(self._iface,self._toruid)
+
+			if isfile(self._rules_file):
+				os.system('sh '+self._rules_file)
+			else:
+				with open(self._rules_file,'w+') as _rw:
+					_rw.write(_rules)
+				os.system('sh '+self._rules_file)
+
+		except Exception:
+			ErrHandler('ProcErr')
+			sys.exit()
+
+		TOR_STAT = os.popen('systemctl status tor | grep \"Active\" | awk \'{print $2}\'').read()
+		if TOR_STAT == "active":
+			call(['systemctl','restart','tor'],stdout=fnull,stderr=fnull)
+		else:
+			call(['systemctl','start','tor'],stdout=fnull,stderr=fnull)
+
+		print BLUE+'  -> Loaded iptables rules.'
+
+		time.sleep(7)
+		self._mod_resolv_conf()
+
+class Anon_Woker:
+	def __init__(self,job):
+		self.job = job
+		if self.job == 'start':
+			self._check_root()
+			self._start_ghost()
+		elif self.job == 'stop':
+			self._check_root()
+			self._stop_ghost()
+		else:
+			self._check_stat()
+
+	def _check_root(self):
+		id = os.getuid()
+		if id != 0:
+			ErrHandler('root')
+			sys.exit()
+		else:
+			pass
+
+	def _start_ghost(self):
+		print CYAN+'==> Start GhostNET mode on your system.\n'
+		try:
+			worker = Ghost_Proc()
+			print RED+'==> Kill Network Manager.'
+			worker._kill_NM()
+			print YELLOW+'==> Delete all iptables rules.'
+			worker._flush_iptables('start')
+			print YELLOW+'==> Kill Processes.'
+			worker._kill_process()
+			print YELLOW+'==> Clear caches.'
+			worker._clear_caches()
+			print YELLOW+'==> Change hostname.'
+			worker._change_hostname('start')
+			print GREEN+'==> Configure tor file.'
+			worker._configure_tor_file()
+			print GREEN+'==> Start Network Manager.'
+			worker._start_NM()
+			print BLUE+'==> Load iptables rules.'
+			worker._load_iptables()
+		except KeyboardInterrupt:
+			ErrHandler('key')
+			sys.exit()
+
+	def _stop_ghost(self):
+		print YELLOW+'==> Stop GhostNET mode.\n'
+		try:
+			worker = Ghost_Proc()
+			print YELLOW+'==> Kill Processes.'
+			worker._kill_process()
+			print RED+'==> Kill Network Manager.'
+			worker._kill_NM()
+			print YELLOW+'==> Delete all iptables rules.'
+			worker._flush_iptables('stop')
+			print YELLOW+'==> Clear caches.'
+			worker._clear_caches()
+			print YELLOW+'==> Change hostname.'
+			worker._change_hostname('stop')
+			print GREEN+'==> Start Network Manager.'
+			worker._start_NM()
+		except KeyboardInterrupt:
+			ErrHandler('key')
+			sys.exit()
+
+	def _check_stat(self):
+		print BLUE+'==> Check GhostNET status.'
+
+		PUB_IP   = urlopen('http://ip.42.pl/raw').read()
+		TOR_STAT = os.popen('systemctl status tor | grep \"Active\" | awk \'{print $2}\'').read()
+
+		print BLUE+'* Hostname: %s' % hostname
+		print BLUE+'* Current IP: %s' % PUB_IP
+		print BLUE+'* Tor: %s' % TOR_STAT
+
+
+def main():
+	try:
+		job = (sys.argv)[1]
+	except:
+		print title
+		sys.exit()
+	else:
+		if job == 'start':
+			worker = Anon_Woker('start')
+		elif job == 'stop':
+			worker = Anon_Woker('stop')
+		elif job == 'status':
+			worker = Anon_Woker('status')
+		else:
+			print title
+			sys.exit(1)
+
+if __name__ == '__main__':
+	main()
