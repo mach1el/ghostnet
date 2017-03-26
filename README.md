@@ -3,6 +3,14 @@ GhostNET script that will help you be safer on the cyber.This script was made fo
 your network traffic will under tor.This script is actually modified to work on ARCH linux,with other linux distros we have
 AnonSurf and BacBox-anonymous which also work same like this script.This script written by python language (v2.7)
 
+## Requires
+* Python 2.7
+* tor
+* bleachbit
+
+### Install requies
+*   sudo pacman -S tor bleachbit
+
 ## Installation
 * sudo su
 * git clone https://github.com/t7hm1/GhostNET.git && cp GhostNET/ghostnet /usr/bin/ghostnet
