@@ -4,6 +4,7 @@ your network traffic will under tor.This script is actually modified to work on 
 AnonSurf and BacBox-anonymous which also work same like this script.This script written by python language (v2.7)
 
 ## Requires
+* Arch and Arch based OS
 * Python 2.7
 * tor
 * bleachbit
