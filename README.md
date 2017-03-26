@@ -32,4 +32,7 @@ AnonSurf and BacBox-anonymous which also work same like this script.This script 
 - [TorStatus](https://torstatus.blutmagie.de/)
 - [dan.is](https://www.dan.me.uk/torcheck)
 
+## Demo
+https://www.youtube.com/watch?v=MD3QrsElOz0
+
 ![Preview](https://4.bp.blogspot.com/-0SaLMFVcjhM/WM6EzndalJI/AAAAAAAABtE/nBwcFo5DujQxMZjHpWcNDtZGWiZbgR85QCLcB/s1600/2017-03-19-200535_1366x768_scrot.png)
