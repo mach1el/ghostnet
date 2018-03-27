@@ -1,16 +1,18 @@
 # GhostNET
 GhostNET script that will help you be safer on the cyber.This script was made for transparent route through tor,Of course!!!
 your network traffic will under tor.This script is actually modified to work on ARCH linux,with other linux distros we have
-AnonSurf and BacBox-anonymous which also work same like this script.This script written by python language (v2.7)
+AnonSurf and BacBox-anonymous which also work same like this script.This script written by python language (v3.)
 
 ## Requires
 * Arch and Arch based OS
-* Python 2.7
+* Python 3
 * tor
 * bleachbit
+* macchanger
 
-### Install requies
-*   sudo pacman -S tor bleachbit
+## New update log
+* auto install require programs
+* runing on python3
 
 ## Installation
 * sudo su
