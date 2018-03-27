@@ -29,7 +29,7 @@ class Faded:
 		else:
 			log('[{0}] Starting network manager service --> '.format(timed()),warn=True)
 			os.popen('systemctl start NetworkManager.service > /dev/null 2>&1')
-			time.sleep(3)
+			time.sleep(7)
 			log('actived',resp=True,end=True)
 
 	@staticmethod
@@ -76,8 +76,7 @@ class Faded:
 	def redirect_to_tor():
 		log('[{0}] Redirecting to tor --> '.format(timed()),warn=True)
 
-		tor_uid = os.system('id -ur tor > /dev/null 2>&1')
-		rules = iptables_rules(Faded._iface,tor_uid)
+		rules = iptables_rules(Faded._iface)
 
 		with open('/opt/load_rules.sh','w+') as script:
 			script.write(rules)
@@ -282,76 +281,126 @@ iptables -P OUTPUT ACCEPT
 '''
 	return rules
 
-def iptables_rules(iface,tor_uid):
+def iptables_rules(iface):
 	rules = r'''
 #!/bin/sh
+
+_tor_uid=`id -u tor` #ArchLinux/Gentoo
 _trans_port="9040"
 _dns_port="5353"
 _virt_addr="10.192.0.0/10"
+
+_out_if="{0}"
+
+# Your incoming interface and assigned local IP (Gateway)
+_inc_if="{0}"
+_inc_ip="192.168.1.1"
+
+# LAN destinations that shouldn't be routed through Tor
 _non_tor="127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16"
+
+# Other IANA reserved blocks (These are not processed by tor and dropped by default)
 _resv_iana="0.0.0.0/8 100.64.0.0/10 169.254.0.0/16 192.0.0.0/24 192.0.2.0/24 192.88.99.0/24 198.18.0.0/15 198.51.100.0/24 203.0.113.0/24 224.0.0.0/3"
 
+### Don't lock yourself out after the flush
+#iptables -P INPUT ACCEPT
+#iptables -P OUTPUT ACCEPT
+
+### Flush iptables
 iptables -F
 iptables -t nat -F
 
-iptables -t nat -A PREROUTING -d $_virt_addr -i {0} -p tcp --syn -j REDIRECT --to-ports $_trans_port
-iptables -t nat -A PREROUTING -i {0} -p udp --dport 5353 -j REDIRECT --to-ports $_dns_port
-iptables -t nat -A PREROUTING -i {0} -p udp --dport 53 -j REDIRECT --to-ports $_dns_port
+### *nat PREROUTING (For middlebox)
+iptables -t nat -A PREROUTING -d $_virt_addr -i $_inc_if -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j REDIRECT --to-ports $_trans_port
+iptables -t nat -A PREROUTING -i $_inc_if -p udp --dport 53 -j REDIRECT --to-ports $_dns_port
 
+# Allow lan access for hosts in $_non_tor
 for _lan in $_non_tor; do
-   iptables -t nat -A PREROUTING -i {0} -d $_lan -j RETURN
+   iptables -t nat -A PREROUTING -i $_inc_if -d $_lan -j RETURN
 done
 
 for _iana in $_resv_iana; do
-   iptables -t nat -A PREROUTING -i {0} -d $_iana -j RETURN
+   iptables -t nat -A PREROUTING -i $_inc_if -d $_iana -j RETURN
 done
 
-iptables -t nat -A PREROUTING -i {0} -p tcp --syn -j REDIRECT --to-ports $_trans_port
+iptables -t nat -A PREROUTING -i $_inc_if -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j REDIRECT --to-ports $_trans_port
 
-iptables -t nat -A OUTPUT -d $_virt_addr -p tcp --syn -j REDIRECT --to-ports $_trans_port
-iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports $_dns_port
-iptables -t nat -A OUTPUT -m owner --uid-owner {1} -j RETURN
+### *nat OUTPUT (For local redirection)
+# nat .onion addresses
+iptables -t nat -A OUTPUT -d $_virt_addr -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j REDIRECT --to-ports $_trans_port
+
+# nat dns requests to Tor
+iptables -t nat -A OUTPUT -d 127.0.0.1/32 -p udp -m udp --dport 53 -j REDIRECT --to-ports $_dns_port
+
+# Don't nat the Tor process, the loopback, or the local network
+iptables -t nat -A OUTPUT -m owner --uid-owner $_tor_uid -j RETURN
 iptables -t nat -A OUTPUT -o lo -j RETURN
 
+# Allow lan access for hosts in $_non_tor
 for _lan in $_non_tor; do
-	iptables -t nat -A OUTPUT -d $_lan -j RETURN
+  iptables -t nat -A OUTPUT -d $_lan -j RETURN
 done
 
-for _lan in $_resv_iana; do
-	iptables -t nat -A OUTPUT -d $_lan -j RETURN
+for _iana in $_resv_iana; do
+  iptables -t nat -A OUTPUT -d $_iana -j RETURN
 done
 
-iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports $_trans_port
+# Redirect all other pre-routing and output to Tor's TransPort
+iptables -t nat -A OUTPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j REDIRECT --to-ports $_trans_port
+
+### *filter INPUT
+# Don't forget to grant yourself ssh access from remote machines before the DROP.
+#iptables -A INPUT -i $_out_if -p tcp --dport 22 -m state --state NEW -j ACCEPT
 
 iptables -A INPUT -m state --state ESTABLISHED -j ACCEPT
 iptables -A INPUT -i lo -j ACCEPT
 
-#Don't forget to grant yourself ssh access for remote machines before the DROP.
-#iptables -A INPUT -i {0} -p tcp --dport 22 -m state --state NEW -j ACCEPT
+# Allow DNS lookups from connected clients and internet access through tor.
+iptables -A INPUT -d $_inc_ip -i $_inc_if -p udp -m udp --dport $_dns_port -j ACCEPT
+iptables -A INPUT -d $_inc_ip -i $_inc_if -p tcp -m tcp --dport $_trans_port --tcp-flags FIN,SYN,RST,ACK SYN -j ACCEPT
 
+# Allow INPUT from lan hosts in $_non_tor
+# Uncomment these 3 lines to enable.
+#for _lan in $_non_tor; do
+# iptables -A INPUT -s $_lan -j ACCEPT
+#done
+
+# Log & Drop everything else. Uncomment to enable logging.
+#iptables -A INPUT -j LOG --log-prefix "Dropped INPUT packet: " --log-level 7 --log-uid
 iptables -A INPUT -j DROP
+
+### *filter FORWARD
 iptables -A FORWARD -j DROP
 
+### *filter OUTPUT
 iptables -A OUTPUT -m state --state INVALID -j DROP
 iptables -A OUTPUT -m state --state ESTABLISHED -j ACCEPT
 
-iptables -A OUTPUT -o {0} -m owner --uid-owner {1} -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j ACCEPT
+# Allow Tor process output
+iptables -A OUTPUT -o $_out_if -m owner --uid-owner $_tor_uid -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j ACCEPT
 
+# Allow loopback output
 iptables -A OUTPUT -d 127.0.0.1/32 -o lo -j ACCEPT
 
-iptables -A OUTPUT -d 127.0.0.1/32 -p tcp --syn --dport $_trans_port -j ACCEPT
+# Tor transproxy magic
+iptables -A OUTPUT -d 127.0.0.1/32 -p tcp -m tcp --dport $_trans_port --tcp-flags FIN,SYN,RST,ACK SYN -j ACCEPT
 
-for _lan in $_non_tor; do
-	iptables -A OUTPUT -d $_lan -j ACCEPT
-done
+# Allow OUTPUT to lan hosts in $_non_tor
+# Uncomment these 3 lines to enable.
+#for _lan in $_non_tor; do
+# iptables -A OUTPUT -d $_lan -j ACCEPT
+#done
 
-iptables -A OUTPUT -j LOG --log-prefix "Dropped OUTPUT packet: " --log-level 7 --log-uid
+# Log & Drop everything else. Uncomment to enable logging
+#iptables -A OUTPUT -j LOG --log-prefix "Dropped OUTPUT packet: " --log-level 7 --log-uid
 iptables -A OUTPUT -j DROP
 
+### Set default policies to DROP
 iptables -P INPUT DROP
 iptables -P FORWARD DROP
 iptables -P OUTPUT DROP
-'''.format(iface,tor_uid)
+
+'''.format(iface)
 	return rules
 
 def usage(purple='\033[35m'):
