@@ -431,7 +431,7 @@ def usage(purple='\033[35m'):
 def check():
 	platform = os.system('which pacman > /dev/null 2>&1')
 	if platform == 0:
-		with open('ghostnet.log','r') as logf:
+		with open('/opt/ghostnet.log','r') as logf:
 			if logf.readline() == "checked=True":
 				pass
 				logf.close()
