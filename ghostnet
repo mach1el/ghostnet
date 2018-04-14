@@ -437,8 +437,8 @@ def check():
 				logf.close()
 			else:
 				log('[{0}] Install some require programs to run this script'.format(timed()),resp=True,end=True)
-				os.system('pacman -Sy tor macchanger bleachbit --noconfirm')
-				with open('ghostnet.log','w') as logf:
+				os.system('sudo pacman -Sy tor macchanger bleachbit --noconfirm')
+				with open('/opt/ghostnet.log','w') as logf:
 					logf.write('checked=True')
 					logf.close()
 	else:
