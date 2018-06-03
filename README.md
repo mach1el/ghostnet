@@ -17,6 +17,7 @@ AnonSurf and BacBox-anonymous which also work same like this script.This script 
 ## Installation
 * git clone https://github.com/t7hm1/GhostNET.git && sudo cp GhostNET/ghostnet /usr/bin/ghostnet
 * cp GhostNET/ghostnet.log /opt/
+* sudo chown (your user name):wheel /opt/ghostnet.log
 * sudo chmod +x /usr/bin/ghostnet
 * sudo ghostnet
 
