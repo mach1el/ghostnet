@@ -14,8 +14,8 @@ GhostNET program that will help you be safer on the cyber network.This program w
 
 ## Installation
 * git clone https://github.com/t7hm1/GhostNET.git && sudo cp GhostNET/ghostnet /usr/bin/ghostnet
-* cp GhostNET/ghostnet.log /opt/
-* sudo chown (your user name):wheel /opt/ghostnet.log
+* sudo cp GhostNET/ghostnet.log /opt/
+* sudo chown (your user name):users /opt/ghostnet.log
 * sudo chmod +x /usr/bin/ghostnet
 * sudo ghostnet
 
