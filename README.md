@@ -1,7 +1,7 @@
 # GhostNET
 GhostNET program that will help you be safer on the cyber network.This program was made for transparently routing through tor, and of course, your network traffic will run under tor.This program is actually modified to work on ARCH linux with other linux distros, we have AnonSurf and BacBox-anonymous which also work the same like this program.This program was written by python language (v3.)
 
-## Requires
+## Requirements 
 * Arch and Arch based OS
 * Python 3
 * tor
@@ -10,7 +10,7 @@ GhostNET program that will help you be safer on the cyber network.This program w
 
 ## New update log
 * auto install require programs
-* runing on python3
+* running on python3
 
 ## Installation
 * git clone https://github.com/t7hm1/GhostNET.git && sudo cp GhostNET/ghostnet /usr/bin/ghostnet
